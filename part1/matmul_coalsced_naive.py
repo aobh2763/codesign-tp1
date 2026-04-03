@@ -46,7 +46,7 @@ kernel_name="coalsed_naive.cl"
 # CHOOSE localsize : 2, 4, 8 , 16 or 32
 #--------------------------------------------------------------------------------
 print("We chose the maximum local size of 32 for best performance.\n")
-localsize = 32
+localsize = 8
 
 # Set up OpenCL
 context = cl.create_some_context()

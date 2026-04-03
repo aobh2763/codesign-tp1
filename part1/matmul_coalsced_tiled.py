@@ -43,7 +43,7 @@ kernel_name="coalsed_tiled.cl"
 # CHOOSE localsize : 2, 4, 8 , 16 or 32
 #--------------------------------------------------------------------------------
 print("We chose the maximum local size of 32 for best performance.\n")
-locblocksize = 32
+locblocksize = 8
 
 
 # Set up OpenCL
