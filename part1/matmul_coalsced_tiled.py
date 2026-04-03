@@ -20,7 +20,7 @@ N = 2048;
 
 # Number of elements in the matrix
 size = N * N
-blocksize=16
+blocksize=8
 localsize=1
 
 # A matrix
