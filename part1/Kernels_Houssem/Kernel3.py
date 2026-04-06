@@ -2,28 +2,27 @@
 # Matrix Multiplication Element By Element
 # compute C=A*B
 # C[i][j] for i: 0--> N-1, j! 0--> N-1
-# 1) Kernel version to execute multiplication with j=0, i=1
-
-# 2) The Program asks for 2 inputs:
-# localsize (4,8,16 or 32) --> Block Size = localsize*localsize
+# The Program asks for 2 inputs:
+# 1) Kernel version to execute: 0 for i(row)--> dim (0) , 1 for i(row) --> dim(1)
+# 2)localsize (4,8,16 or 32) --> Block Size = localsize*localsize
+# 
 
 from helper import *
 from definitions import *
 
-import numpy
-
 import pyopencl as cl
-
+import numpy
 from time import time
 from time import sleep
+WPT = 4;
 
 # A[N][N], B[N][N], C[N][N]
-N = 2048
+N = 2048;
 
 # Number of elements in the matrix
 size = N * N
-#true value
-cval = float(N) * AVAL * BVAL
+blocksize=8
+localsize=1
 
 # A matrix
 h_A = numpy.empty(size).astype(numpy.float32)
@@ -36,17 +35,17 @@ h_B.fill(BVAL)
 # C matrix
 h_C = numpy.empty(size).astype(numpy.float32)
 
-
 #--------------------------------------------------------------------------------
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
-#--------------------------------------------------------------------------------
-print ("Matrix multiplication",N,"*",N," repeated 20 times, j=0, i=1 :\n")
-kernel_name="part1/Kernels_Houssem/Kernel1.cl"
+#--------------------------------------------------------------------------
+kernel_name="part1/Kernels_Houssem/Kernel3.cl"
+
 #--------------------------------------------------------------------------------
 # CHOOSE localsize : 2, 4, 8 , 16 or 32
 #--------------------------------------------------------------------------------
 print("We chose the maximum local size of 16 for best performance.\n")
-localsize = 16
+locblocksize = 16
+
 
 # Set up OpenCL
 context = cl.create_some_context()
@@ -59,10 +58,14 @@ h_B = numpy.empty(size).astype(numpy.float32)
 h_B.fill(BVAL)
 h_C = numpy.empty(size).astype(numpy.float32)
 
+#h_Awrk = numpy.empty(blocksize).astype(numpy.float32)
+#h_Bwrk = numpy.empty(blocksize).astype(numpy.float32)
+
 # Create OpenCL buffers
 d_a = cl.Buffer(context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=h_A)
 d_b = cl.Buffer(context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=h_B)
 d_c = cl.Buffer(context, cl.mem_flags.WRITE_ONLY, size=h_C.nbytes)
+
 
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... Naive: Each WI computes one element
@@ -71,28 +74,40 @@ d_c = cl.Buffer(context, cl.mem_flags.WRITE_ONLY, size=h_C.nbytes)
 kernelsource = open(kernel_name).read()
 program = cl.Program(context, kernelsource).build()
 mmul = program.mmul
-mmul.set_scalar_arg_dtypes([numpy.int32, None, None, None])
+mmul.set_scalar_arg_dtypes([numpy.int32, None, None, None, None, None])
 
 # Do the multiplication COUNT times
+#locblocksize = 16
 
-print ("\n Starting ", COUNT, " OpenCL Matrix Multiplications")
+print("Starting", COUNT , " OpenCL Matrix Multiplications")
 start_time = time()
 
-
 for i in range(COUNT):    
-    #h_C.fill(0.0)
+    h_C.fill(0.0)
     try:
-        mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), d_a, d_b, d_c)
+        A_block = cl.LocalMemory(numpy.dtype(numpy.float32).itemsize * locblocksize * locblocksize)
+        B_block = cl.LocalMemory(numpy.dtype(numpy.float32).itemsize * locblocksize * locblocksize)   
+
+        # Work-group computes a block of C. This size is also set
+        # in a #define inside the kernel function. Note this blocksize
+        # must evenly divide the matrix order
+
+        mmul(queue, (N//WPT,N), (locblocksize//WPT,locblocksize), N, d_a, d_b, d_c, A_block, B_block)
+        
+        #mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), d_a, d_b, d_c,d_Awrk, d_Bwrk)
         queue.finish()
     except:
         print (" ===  Error for localsize =", localsize, "===\n")    
 
 run_time = time() - start_time
-
-
-print ("\n End of", COUNT, "Matrix Multiplications\n")
-
-results (N, COUNT , run_time)
+    
+print ("mmum queued")
 
 #reading the result h_C
 cl.enqueue_copy(queue, h_C, d_c)
+
+#cl.enqueue_read_buffer(queue, d_c, h_C).wait()
+print (h_C[0])
+
+
+results (N, COUNT, run_time)

@@ -37,13 +37,13 @@ h_C = numpy.empty(size).astype(numpy.float32)
 #--------------------------------------------------------------------------------
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
 #--------------------------------------------------------------------------
-kernel_name="coalsed_tiled.cl"
+kernel_name="part1/Kernels_Houssem/Kernel2.cl"
 
 #--------------------------------------------------------------------------------
 # CHOOSE localsize : 2, 4, 8 , 16 or 32
 #--------------------------------------------------------------------------------
-print("We chose the maximum local size of 32 for best performance.\n")
-locblocksize = 32
+print("We chose the maximum local size of 16 for best performance.\n")
+locblocksize = 16
 
 
 # Set up OpenCL
