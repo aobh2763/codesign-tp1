@@ -1,5 +1,5 @@
 
-# Order of the square matrices A, B and C
+# Order of the square matrices A, B and C aaa
 ORDER = 1024
 
 # A elemetns are constant and equal to AVAL
