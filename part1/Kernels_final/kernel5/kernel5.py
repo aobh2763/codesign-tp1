@@ -8,7 +8,7 @@ from time import time
 N    = 2048
 size = N * N
 
-kernel_name = "part1/Kernels_final/kernel5.cl"
+kernel_name = "part1/Kernels_final/kernel5/kernel5.cl"
 
 # ── OpenCL setup ────────────────────────────────────────────────
 context = cl.create_some_context()

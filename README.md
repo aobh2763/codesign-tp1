@@ -44,3 +44,7 @@ TSM =  128  TSN =  128  TSK =  16  WPTM =  8  WPTN =  8  WITDH =  4
 ## Kernel 10 : Incomplete tiles and arbitrary matrix sizes
 TSM =  128  TSN =  128  TSK =  16  WPTM =  16  WPTN =  8  WIDTH = 2
 0.14084863662719727 seconds at 3903167.4501977004 MFLOPS
+
+## Kernel 11 : Mystery kernel
+THREADSX =  16  THREADSY =  4  RX =  4  RY =  8
+0.16794228553771973 seconds at 3273480.6015518066 MFLOPS

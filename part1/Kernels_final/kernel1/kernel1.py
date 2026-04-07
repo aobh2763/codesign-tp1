@@ -1,3 +1,10 @@
+import sys
+import os
+
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'parent_folder'))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
 from helper import *
 from definitions import *
 
@@ -21,7 +28,7 @@ cval = float(N) * AVAL * BVAL
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
 #--------------------------------------------------------------------------------
 print ("Matrix multiplication",N,"*",N," repeated ",COUNT," times, j=0, i=1 :\n")
-kernel_name="part1/Kernels_final/kernel1.cl"
+kernel_name="part1/Kernels_final/kernel1/kernel1.cl"
 #--------------------------------------------------------------------------------
 # CHOOSE localsize : 2, 4, 8 , 16 or 32
 #--------------------------------------------------------------------------------

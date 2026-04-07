@@ -14,7 +14,7 @@ size = N * N
 #--------------------------------------------------------------------------------
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
 #--------------------------------------------------------------------------
-kernel_name="part1/Kernels_final/kernel9.cl"
+kernel_name="part1/Kernels_final/kernel9/kernel9.cl"
 
 
 # Set up OpenCL
