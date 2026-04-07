@@ -1,12 +1,3 @@
-#
-# Matrix Multiplication Element By Element
-# compute C=A*B
-# C[i][j] for i: 0--> N-1, j! 0--> N-1
-# The Program asks for 2 inputs:
-# 1) Kernel version to execute: 0 for i(row)--> dim (0) , 1 for i(row) --> dim(1)
-# 2)localsize (4,8,16 or 32) --> Block Size = localsize*localsize
-# 
-
 from helper import *
 from definitions import *
 
@@ -15,34 +6,15 @@ import numpy
 from time import time
 from time import sleep
 
-# A[N][N], B[N][N], C[N][N]
 N = 2048
 
 # Number of elements in the matrix
 size = N * N
 
-
-# A matrix
-h_A = numpy.empty(size).astype(numpy.float32)
-h_A.fill(AVAL)
-
-# B matrix
-h_B = numpy.empty(size).astype(numpy.float32)
-h_B.fill(BVAL)
-
-# C matrix
-h_C = numpy.empty(size).astype(numpy.float32)
-
 #--------------------------------------------------------------------------------
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
 #--------------------------------------------------------------------------
-kernel_name="part1/Kernels_Houssem/Kernel2.cl"
-
-#--------------------------------------------------------------------------------
-# CHOOSE localsize : 2, 4, 8 , 16 or 32
-#--------------------------------------------------------------------------------
-print("We chose the maximum local size of 16 for best performance.\n")
-locblocksize = 32
+kernel_name="part1/Kernels_final/kernel2.cl"
 
 
 # Set up OpenCL
@@ -56,9 +28,6 @@ h_B = numpy.empty(size).astype(numpy.float32)
 h_B.fill(BVAL)
 h_C = numpy.empty(size).astype(numpy.float32)
 
-#h_Awrk = numpy.empty(blocksize).astype(numpy.float32)
-#h_Bwrk = numpy.empty(blocksize).astype(numpy.float32)
-
 # Create OpenCL buffers
 d_a = cl.Buffer(context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=h_A)
 d_b = cl.Buffer(context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=h_B)
@@ -69,10 +38,13 @@ d_c = cl.Buffer(context, cl.mem_flags.WRITE_ONLY, size=h_C.nbytes)
 # OpenCL matrix multiplication ... Naive: Each WI computes one element
 # C_elemnt.cl : i= get_global_id(0) - j=get_global_id(1)
 #--------------------------------------------------------------------------------
+TS=32
 kernelsource = open(kernel_name).read()
-program = cl.Program(context, kernelsource).build()
+program = cl.Program(context, kernelsource).build(
+    options=[f"-DTS={TS}"]
+)
 mmul = program.mmul
-mmul.set_scalar_arg_dtypes([numpy.int32, None, None, None, None, None])
+mmul.set_scalar_arg_dtypes([numpy.int32, numpy.int32, numpy.int32, None, None, None])
 
 # Do the multiplication COUNT times
 
@@ -82,15 +54,12 @@ start_time = time()
 
 for i in range(COUNT):    
     h_C.fill(0.0)
-    try:
-        A_block = cl.LocalMemory(numpy.dtype(numpy.float32).itemsize * locblocksize * locblocksize)
-        B_block = cl.LocalMemory(numpy.dtype(numpy.float32).itemsize * locblocksize * locblocksize)   
-
+    try: 
         # Work-group computes a block of C. This size is also set
         # in a #define inside the kernel function. Note this blocksize
         # must evenly divide the matrix order
 
-        mmul(queue, (N,N), (locblocksize,locblocksize), N, d_a, d_b, d_c, A_block, B_block)
+        mmul(queue, (N,N), (TS,TS), N, N, N, d_a, d_b, d_c)
         
         #mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), d_a, d_b, d_c,d_Awrk, d_Bwrk)
         queue.finish()
