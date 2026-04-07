@@ -1,25 +1,3 @@
-#ifndef TSM
-#define TSM 128                      // The tile-size in dimension M
-#endif
-
-#ifndef TSN
-#define TSN 128                      // The tile-size in dimension N
-#endif
-
-#ifndef TSK
-#define TSK 16                       // The tile-size in dimension K
-#endif
-
-#ifndef WPTM
-#define WPTM 8                       // The amount of work-per-thread in dimension M
-#endif
-
-#ifndef WPTN
-#define WPTN 8                       // The amount of work-per-thread in dimension N
-#endif
-
-#define WIDTH 2
-
 #define RTSM (TSM/WPTM)              // The reduced tile-size in dimension M (== number of threads)
 #define RTSN (TSN/WPTN)              // The reduced tile-size in dimension N (== number of threads)
 #define LPTA ((TSK*WPTM*WPTN)/(TSN)) // The amount of loads-per-thread for A
@@ -36,10 +14,22 @@
     typedef float8 floatX;
 #endif
 
+#ifndef THREADSX
 #define THREADSX 8
+#endif
+
+#ifndef THREADSY
 #define THREADSY 8
+#endif
+
+#ifndef RX
 #define RX 8
+#endif
+
+#ifndef RY
 #define RY 4
+#endif
+
 #define RK (RY)
 
 // Typedefs for clBlas-mimic kernel (myGEMM11)
@@ -63,7 +53,7 @@
 #endif
 
 // Mimic clBlas (4x8 register tiling with vector data-types)
-__kernel void myGEMM11(const int M, const int N, const int K,
+__kernel void mmul(const int M, const int N, const int K,
                        const __global floatA* restrict A,
                        const __global floatB* restrict B,
                        __global floatC* C) {
