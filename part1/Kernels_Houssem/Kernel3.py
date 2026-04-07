@@ -14,13 +14,14 @@ import pyopencl as cl
 import numpy
 from time import time
 from time import sleep
+WPT = 4;
 
 # A[N][N], B[N][N], C[N][N]
 N = 2048;
 
 # Number of elements in the matrix
 size = N * N
-blocksize=16
+blocksize=8
 localsize=1
 
 # A matrix
@@ -37,13 +38,13 @@ h_C = numpy.empty(size).astype(numpy.float32)
 #--------------------------------------------------------------------------------
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
 #--------------------------------------------------------------------------
-kernel_name="coalsed_tiled.cl"
+kernel_name="part1/Kernels_Houssem/Kernel3.cl"
 
 #--------------------------------------------------------------------------------
 # CHOOSE localsize : 2, 4, 8 , 16 or 32
 #--------------------------------------------------------------------------------
-print("We chose the maximum local size of 32 for best performance.\n")
-locblocksize = 32
+print("We chose the maximum local size of 16 for best performance.\n")
+locblocksize = 16
 
 
 # Set up OpenCL
@@ -91,7 +92,7 @@ for i in range(COUNT):
         # in a #define inside the kernel function. Note this blocksize
         # must evenly divide the matrix order
 
-        mmul(queue, (N,N), (locblocksize,locblocksize), N, d_a, d_b, d_c, A_block, B_block)
+        mmul(queue, (N//WPT,N), (locblocksize//WPT,locblocksize), N, d_a, d_b, d_c, A_block, B_block)
         
         #mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), d_a, d_b, d_c,d_Awrk, d_Bwrk)
         queue.finish()

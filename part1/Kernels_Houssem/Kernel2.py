@@ -16,12 +16,11 @@ from time import time
 from time import sleep
 
 # A[N][N], B[N][N], C[N][N]
-N = 2048;
+N = 2048
 
 # Number of elements in the matrix
 size = N * N
-blocksize=16
-localsize=1
+
 
 # A matrix
 h_A = numpy.empty(size).astype(numpy.float32)
@@ -37,12 +36,12 @@ h_C = numpy.empty(size).astype(numpy.float32)
 #--------------------------------------------------------------------------------
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
 #--------------------------------------------------------------------------
-kernel_name="coalsed_tiled.cl"
+kernel_name="part1/Kernels_Houssem/Kernel2.cl"
 
 #--------------------------------------------------------------------------------
 # CHOOSE localsize : 2, 4, 8 , 16 or 32
 #--------------------------------------------------------------------------------
-print("We chose the maximum local size of 32 for best performance.\n")
+print("We chose the maximum local size of 16 for best performance.\n")
 locblocksize = 32
 
 
@@ -76,7 +75,7 @@ mmul = program.mmul
 mmul.set_scalar_arg_dtypes([numpy.int32, None, None, None, None, None])
 
 # Do the multiplication COUNT times
-#locblocksize = 16
+
 
 print("Starting", COUNT , " OpenCL Matrix Multiplications")
 start_time = time()
@@ -96,7 +95,7 @@ for i in range(COUNT):
         #mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), d_a, d_b, d_c,d_Awrk, d_Bwrk)
         queue.finish()
     except:
-        print (" ===  Error for localsize =", localsize, "===\n")    
+        print (" ===  Error ===\n")    
 
 run_time = time() - start_time
     
