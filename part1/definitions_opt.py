@@ -3,8 +3,11 @@ N     = 2048   # Matrix order: A(N×N), B(N×N), C(N×N)
                # Must be divisible by TSM, TSN, TSK, and WIDTH after padding.
 COUNT = 20     # Number of timed GEMM iterations
 
-AVAL  = 1.0    # Fill value for A  (all ones makes the expected result easy: N)
-BVAL  = 1.0    # Fill value for B
+# A elemetns are constant and equal to AVAL
+AVAL = 3.257
+
+# B elemetns are constant and equal to BVAL
+BVAL = 5.723
 
 # =============================================================================
 #  [B]  KERNEL TUNING PARAMETERS

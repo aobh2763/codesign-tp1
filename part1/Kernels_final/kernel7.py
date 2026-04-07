@@ -14,7 +14,7 @@ size = N * N
 #--------------------------------------------------------------------------------
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
 #--------------------------------------------------------------------------
-kernel_name="part1/Kernels_final/kernel6.cl"
+kernel_name="part1/Kernels_final/kernel7.cl"
 
 
 # Set up OpenCL
@@ -115,7 +115,7 @@ for TSM in [64, 128]:
                     print ("mmum queued")
 
                     #reading the result h_C
-                    cl.enqueue_copy(queue, h_C, d_c)
+                    cl.enqueue_copy(queue, h_C, d_c).wait()
 
                     #cl.enqueue_read_buffer(queue, d_c, h_C).wait()
                     print (h_C[0])

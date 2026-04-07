@@ -14,7 +14,7 @@ size = N * N
 #--------------------------------------------------------------------------------
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
 #--------------------------------------------------------------------------
-kernel_name="part1/Kernels_final/kernel6.cl"
+kernel_name="part1/Kernels_final/kernel10.cl"
 
 
 # Set up OpenCL
@@ -48,13 +48,9 @@ for TSM in [64, 128]:
     for TSN in [64, 128]:
         if (TSN < TSM):
             continue
-        for TSK in [16, 32]:
+        for TSK in [16]:
             for WPTM in [8, 16]:
-                if TSM % WPTM != 0:
-                    continue
                 for WPTN in [8, 16]:
-                    if TSN % WPTN != 0:
-                        continue
 
                     RTSM = TSM // WPTM
                     RTSN = TSN // WPTN
@@ -70,8 +66,6 @@ for TSM in [64, 128]:
 
                     # --- integer loads per thread ---
                     threads = RTSM * RTSN
-                    if (TSK*TSM) % threads != 0:
-                        continue
 
                     LPT = (TSK*TSM)//threads
                     
@@ -115,7 +109,7 @@ for TSM in [64, 128]:
                     print ("mmum queued")
 
                     #reading the result h_C
-                    cl.enqueue_copy(queue, h_C, d_c)
+                    cl.enqueue_copy(queue, h_C, d_c).wait()
 
                     #cl.enqueue_read_buffer(queue, d_c, h_C).wait()
                     print (h_C[0])
