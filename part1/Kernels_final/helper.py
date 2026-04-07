@@ -34,6 +34,8 @@ def results(N, COUNT, run_time):
     mflops = 2.0 * COUNT * N * N * N/(1000000.0* run_time)
     
     print (run_time, "seconds at", mflops, "MFLOPS")
+    
+    return mflops
     #errgpu = error(N, C)
     #toterr=errgpu/(N*N)
     #print ("Error per operation :",toterr)
