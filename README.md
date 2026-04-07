@@ -26,5 +26,21 @@ TBD
 
 ## Kernel 6 : 2D register blocking
 ### Best
-TSM =  64  TSN =  128  TSK =  16  WPTM =  16  WPTN =  8  with  2553456.8243882735  MFLOPS
-0.21529865264892578 seconds at 2553456.8243882735 MFLOPS
+TSM =  128  TSN =  128  TSK =  16  WPTM =  16  WPTN =  8
+0.21154117584228516 seconds at 2598812.3196302513 MFLOPS
+
+## Kernel 7 : Wider loads with register blocking
+### Best
+TSM =  64  TSN =  128  TSK =  16  WPTM =  8  WPTN =  16  WIDTH =  4
+19498491287231445 seconds at 2819478.7267874754 MFLOPS
+
+## Kernel 8 : CUDA and Kepler-specific optimisations
+TBD
+
+## Kernel 9 : Pre-fetching
+TSM =  128  TSN =  128  TSK =  16  WPTM =  8  WPTN =  8  WITDH =  4
+0.93320631980896 seconds at 589104.2551024971 MFLOPS
+
+## Kernel 10 : Incomplete tiles and arbitrary matrix sizes
+TSM =  128  TSN =  128  TSK =  16  WPTM =  16  WPTN =  8  WIDTH = 2
+0.14084863662719727 seconds at 3903167.4501977004 MFLOPS

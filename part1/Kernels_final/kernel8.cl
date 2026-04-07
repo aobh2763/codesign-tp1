@@ -36,7 +36,7 @@
     typedef float8 floatX;
 #endif
 
-// Wider loads combined with 2D register blocking
+// CUDA and Kepler-specific optimisations (LDG and warp-shuffle)
 __kernel void mmul(const int M, const int N, const int K,
                       const __global floatX* A,
                       const __global floatX* B,
@@ -81,8 +81,15 @@ __kernel void mmul(const int M, const int N, const int K,
 
             // Load the values (wide vector load)
             int tiledIndex = TSK*t + col;
-            floatX vecA = A[tiledIndex*(M/WIDTH) + offsetM/WIDTH + row];
-            floatX vecB = B[tiledIndex*(N/WIDTH) + offsetN/WIDTH + row];
+            int indexA = tiledIndex*(M/WIDTH) + offsetM/WIDTH + row;
+            int indexB = tiledIndex*(N/WIDTH) + offsetN/WIDTH + row;
+            #ifdef USE_LDG
+                floatX vecA = __ldg(&A[indexA]);
+                floatX vecB = __ldg(&B[indexB]);
+            #else
+                floatX vecA = A[indexA];
+                floatX vecB = B[indexB];
+            #endif
 
             // Store the loaded vectors into local memory
             #if WIDTH == 1
@@ -117,11 +124,31 @@ __kernel void mmul(const int M, const int N, const int K,
         for (int k=0; k<TSK; k++) {
 
             // Cache the values of Bsub in registers
-            #pragma unroll
-            for (int wn=0; wn<WPTN; wn++) {
-                int col = tidn + wn*RTSN;
-                Breg[wn] = Bsub[k][col];
-            }
+            #ifdef USE_SHUFFLE
+                int col = tidn + (tidm % WPTN)*RTSN;
+                float val = Bsub[k][col];
+                #pragma unroll
+                for (int wn=0; wn<WPTN; wn++) {
+                    Breg[wn] = __shfl(val, wn, WPTN);
+                }
+            #else
+                #pragma unroll
+                for (int wn=0; wn<WPTN; wn++) {
+                    int col = tidn + wn*RTSN;
+                    Breg[wn] = Bsub[k][col];
+                }
+            #endif
+
+            /*// Cache the values of Asub in registers
+            #ifdef USE_SHUFFLE
+                for (int wn=0; wn<WPTN; wn+=(32/RTSM)) {
+                    int type = tidn % (32/RTSM);
+                    int row = tidm + (wn+type)*RTSM;
+                    float val = Asub[k][row];
+                    Areg[wn] = __shfl_up(val, RTSM);
+                    Areg[wn+1] = __shfl_down(val, RTSM);
+                }
+            #endif */
 
             // Perform the computation
             #pragma unroll
