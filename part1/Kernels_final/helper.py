@@ -35,7 +35,7 @@ def results(N, COUNT, run_time):
     
     print (run_time, "seconds at", mflops, "MFLOPS")
     
-    return mflops
+    return mflops, run_time
     #errgpu = error(N, C)
     #toterr=errgpu/(N*N)
     #print ("Error per operation :",toterr)

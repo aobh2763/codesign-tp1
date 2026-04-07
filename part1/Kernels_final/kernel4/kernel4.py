@@ -1,3 +1,10 @@
+import sys
+import os
+
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
 from helper import *
 from definitions import *
 
@@ -39,6 +46,7 @@ d_c = cl.Buffer(context, cl.mem_flags.WRITE_ONLY, size=h_C.nbytes)
 # C_elemnt.cl : i= get_global_id(0) - j=get_global_id(1)
 #--------------------------------------------------------------------------------
 bestmflops = 0.0
+bestsecs = numpy.inf
 bestcouple = (0, 0)
 for TS in [4, 8, 16, 32]:
     for WIDTH in [1, 2, 4, 8]:
@@ -85,9 +93,11 @@ for TS in [4, 8, 16, 32]:
         #cl.enqueue_read_buffer(queue, d_c, h_C).wait()
         print (h_C[0])
         
-        curr = results (N, COUNT, run_time)
+        curr, currs = results (N, COUNT, run_time)
         if curr > bestmflops:
             bestmflops = curr
+            bestsecs = currs
             bestcouple = (TS, WIDTH)
             
 print ("Best performance at TS = ", bestcouple[0], " and WIDTH = ", bestcouple[1], " with ", bestmflops, " MFLOPS\n")
+print (bestsecs, "seconds at", bestmflops, "MFLOPS")

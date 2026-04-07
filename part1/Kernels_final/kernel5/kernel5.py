@@ -1,3 +1,10 @@
+import sys
+import os
+
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if parent_dir not in sys.path:
+    sys.path.append(parent_dir)
+
 from helper import *
 from definitions import *
 
@@ -36,6 +43,7 @@ MAX_WG_SIZE    = 1024
 LOCAL_MEM_BYTES = 48 * 1024
 
 bestmflops = 0.0
+bestsecs = numpy.inf
 besttuple  = (0, 0, 0, 0, 0)
 
 for TSM in [32, 64, 128]:
@@ -130,11 +138,11 @@ for TSM in [32, 64, 128]:
                     cl.enqueue_copy(queue, h_C, d_c)
                     print(f"  h_C[0] = {h_C[0]}")
 
-                    curr = results(N, COUNT, run_time)
+                    curr, currs = results(N, COUNT, run_time)
                     if curr > bestmflops:
                         bestmflops = curr
+                        bestsecs = currs
                         besttuple  = (TSM, TSN, TSK, WPTM, WPTN)
-
-            print(f"Best so far: TSM={besttuple[0]} TSN={besttuple[1]} "
-                  f"TSK={besttuple[2]} WPTM={besttuple[3]} WPTN={besttuple[4]} "
-                  f"→ {bestmflops:.1f} MFLOPS")
+    
+print ("Best performance at TSM = ", besttuple[0], " TSN = ", besttuple[1], " TSK = ", besttuple[2], " WPTM = ", besttuple[3], " WPTN = ", besttuple[4], " with ", bestmflops, " MFLOPS\n")
+print (bestsecs, "seconds at", bestmflops, "MFLOPS")
