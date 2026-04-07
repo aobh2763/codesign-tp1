@@ -19,3 +19,12 @@ TS =  32  and WPT =  16
 ### Best
 TS =  32  and WIDTH =  4
 0.38169121742248535 seconds at 1440315.5975147518 MFLOPS
+
+## Kernel 5 : Transposed input matrix and rectangular tiles
+### Best
+TBD
+
+## Kernel 6 : 2D register blocking
+### Best
+TSM =  64  TSN =  128  TSK =  16  WPTM =  16  WPTN =  8  with  2553456.8243882735  MFLOPS
+0.21529865264892578 seconds at 2553456.8243882735 MFLOPS
