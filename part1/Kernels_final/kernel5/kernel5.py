@@ -33,116 +33,116 @@ d_b  = cl.Buffer(context, cl.mem_flags.READ_ONLY  | cl.mem_flags.COPY_HOST_PTR, 
 d_bt = cl.Buffer(context, cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR, hostbuf=h_Bt)
 d_c  = cl.Buffer(context, cl.mem_flags.WRITE_ONLY, size=h_C.nbytes)
 
-# ── Transpose global size (must be multiples of 32) ─────────────
-TRANS_LOCAL = 32
+# ── Transpose kernel uses fixed 16x16 local size (hardcoded in kernel) ──
+TRANS_LOCAL = 16                           # must match TRANSPOSEX/TRANSPOSEY
 trans_gx = int(numpy.ceil(N / TRANS_LOCAL)) * TRANS_LOCAL
 trans_gy = int(numpy.ceil(N / TRANS_LOCAL)) * TRANS_LOCAL
 
 # ── Search constraints ───────────────────────────────────────────
-MAX_WG_SIZE    = 1024
+MAX_WG_SIZE     = 1024
 LOCAL_MEM_BYTES = 48 * 1024
 
 bestmflops = 0.0
-bestsecs = numpy.inf
-besttuple  = (0, 0, 0, 0, 0)
+bestsecs   = numpy.inf
+besttuple  = (0, 0, 0)          # (TS, WPT, TSDK)
 
-for TSM in [32, 64, 128]:
-    for TSN in [32, 64, 128]:
-        for TSK in [16, 32, 64]:
-            for WPTM in [1]:            # kernel only supports WPTM=1
-                if TSM % WPTM != 0:
-                    continue
-                for WPTN in [1, 2, 4, 8]:
-                    if TSN % WPTN != 0:
-                        continue
+# Kernel5 uses a single TS for both M and N tile dimensions,
+# and a separate TSDK for the K tile. WPT coarsens the column
+# dimension only (WPTM is implicitly 1).
+for TS in [32, 64, 128]:
+    for TSDK in [16, 32, 64]:
+        for WPT in [1, 2, 4, 8]:
 
-                    RTSM = TSM // WPTM
-                    RTSN = TSN // WPTN
+            # TS must be divisible by WPT
+            if TS % WPT != 0:
+                continue
 
-                    # work-group size check
-                    if RTSM * RTSN > MAX_WG_SIZE:
-                        continue
+            RTS = TS // WPT           # reduced tile size (cols per thread)
 
-                    # local memory check: Asub(TSK*TSM) + Bsub(TSN*TSK) floats
-                    local_mem = 4 * (TSM * TSK + TSN * TSK)
-                    if local_mem > LOCAL_MEM_BYTES:
-                        continue
+            # work-group size: TS rows × RTS cols
+            if TS * RTS > MAX_WG_SIZE:
+                continue
 
-                    # LPT must be a whole number
-                    threads = RTSM * RTSN
-                    if (TSK * TSM) % threads != 0:
-                        continue
-                    LPT = (TSK * TSM) // threads
+            # LPT = (TSDK * WPT) / TS  must be a positive integer
+            if (TSDK * WPT) % TS != 0:
+                continue
+            LPT = (TSDK * WPT) // TS
+            if LPT < 1:
+                continue
 
-                    # ── Build kernel ─────────────────────────────────────
-                    kernelsource = open(kernel_name).read()
-                    try:
-                        program = cl.Program(context, kernelsource).build(options=[
-                            f"-DTSM={TSM}",
-                            f"-DTSN={TSN}",
-                            f"-DTSK={TSK}",
-                            f"-DWPTM={WPTM}",
-                            f"-DWPTN={WPTN}",
-                        ])
-                    except cl.RuntimeError as e:
-                        print(f"Build error TSM={TSM} TSN={TSN} TSK={TSK}: {e}")
-                        continue
+            # local memory: Asub[TSDK][TS] + Bsub[TS][TSDK+2] floats
+            local_mem = 4 * (TSDK * TS + TS * (TSDK + 2))
+            if local_mem > LOCAL_MEM_BYTES:
+                continue
 
-                    transpose_k = program.transpose
-                    transpose_k.set_scalar_arg_dtypes(
-                        [numpy.int32, numpy.int32, None, None])
+            # ── Build kernel ─────────────────────────────────────
+            kernelsource = open(kernel_name).read()
+            try:
+                program = cl.Program(context, kernelsource).build(options=[
+                    f"-DTS={TS}",
+                    f"-DWPT={WPT}",
+                    f"-DTSDK={TSDK}",
+                ])
+            except cl.RuntimeError as e:
+                print(f"Build error TS={TS} WPT={WPT} TSDK={TSDK}: {e}")
+                continue
 
-                    mmul = program.mmul
-                    mmul.set_scalar_arg_dtypes(
-                        [numpy.int32, numpy.int32, numpy.int32, None, None, None])
+            transpose_k = program.transpose
+            transpose_k.set_scalar_arg_dtypes(
+                [numpy.int32, numpy.int32, None, None])
 
-                    # global ND-range for mmul
-                    num_groups_M = int(numpy.ceil(N / TSM))
-                    num_groups_N = int(numpy.ceil(N / TSN))
-                    mmul_gx = num_groups_M * RTSM
-                    mmul_gy = num_groups_N * RTSN
+            mmul = program.myGEMM5       # kernel entry point is myGEMM5
+            mmul.set_scalar_arg_dtypes(
+                [numpy.int32, numpy.int32, numpy.int32, None, None, None])
 
-                    print(f"Starting {COUNT} multiplications | "
-                          f"TSM={TSM} TSN={TSN} TSK={TSK} WPTM={WPTM} WPTN={WPTN}")
+            # global ND-range for mmul: groups of (TS, RTS) threads
+            num_groups_M = int(numpy.ceil(N / TS))
+            num_groups_N = int(numpy.ceil(N / TS))
+            mmul_gx = num_groups_M * TS
+            mmul_gy = num_groups_N * RTS
 
-                    start_time = time()
-                    ok = True
-                    for i in range(COUNT):
-                        h_C.fill(0.0)
-                        try:
-                            # 1. Transpose B → Bt  (N×N square matrix)
-                            transpose_k(queue,
-                                        (trans_gx, trans_gy),
-                                        (TRANS_LOCAL, TRANS_LOCAL),
-                                        numpy.int32(N), numpy.int32(N),
-                                        d_b, d_bt)
+            print(f"Starting {COUNT} multiplications | "
+                  f"TS={TS} WPT={WPT} TSDK={TSDK} "
+                  f"(RTS={RTS} LPT={LPT} wg={TS}x{RTS})")
 
-                            # 2. Matrix multiply using pre-transposed B
-                            mmul(queue,
-                                 (mmul_gx, mmul_gy),
-                                 (RTSM, RTSN),
-                                 numpy.int32(N), numpy.int32(N), numpy.int32(N),
-                                 d_a, d_bt, d_c)
+            start_time = time()
+            ok = True
+            for i in range(COUNT):
+                h_C.fill(0.0)
+                try:
+                    # 1. Transpose B → Bt
+                    transpose_k(queue,
+                                (trans_gx, trans_gy),
+                                (TRANS_LOCAL, TRANS_LOCAL),
+                                numpy.int32(N), numpy.int32(N),
+                                d_b, d_bt)
 
-                            queue.finish()
-                        except Exception as e:
-                            print(f"  === Runtime error: {e} ===")
-                            ok = False
-                            break
+                    # 2. Matrix multiply using pre-transposed Bt
+                    mmul(queue,
+                         (mmul_gx, mmul_gy),
+                         (TS, RTS),
+                         numpy.int32(N), numpy.int32(N), numpy.int32(N),
+                         d_a, d_bt, d_c)
 
-                    run_time = time() - start_time
+                    queue.finish()
+                except Exception as e:
+                    print(f"  === Runtime error: {e} ===")
+                    ok = False
+                    break
 
-                    if not ok:
-                        continue
+            run_time = time() - start_time
 
-                    cl.enqueue_copy(queue, h_C, d_c)
-                    print(f"  h_C[0] = {h_C[0]}")
+            if not ok:
+                continue
 
-                    curr, currs = results(N, COUNT, run_time)
-                    if curr > bestmflops:
-                        bestmflops = curr
-                        bestsecs = currs
-                        besttuple  = (TSM, TSN, TSK, WPTM, WPTN)
+            cl.enqueue_copy(queue, h_C, d_c)
+            print(f"  h_C[0] = {h_C[0]}")
+
+            curr, currs = results(N, COUNT, run_time)
+            if curr > bestmflops:
+                bestmflops = curr
+                bestsecs   = currs
+                besttuple  = (TS, WPT, TSDK)
     
-print ("Best performance at TSM = ", besttuple[0], " TSN = ", besttuple[1], " TSK = ", besttuple[2], " WPTM = ", besttuple[3], " WPTN = ", besttuple[4], " with ", bestmflops, " MFLOPS\n")
+print("Best performance at TS={}, WPT={}, TSDK={}".format(*besttuple))
 print (bestsecs, "seconds at", bestmflops, "MFLOPS")

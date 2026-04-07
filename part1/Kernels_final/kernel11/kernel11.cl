@@ -67,7 +67,7 @@ __kernel void mmul(const int M, const int N, const int K,
     #pragma unroll
     for (int y=0; y<RY; y++) {
         for (int x=0; x<RX; x++) {
-            acc[y][x] = 0.0;
+            acc[y][x] = 0.0f;
         }
     }
 
