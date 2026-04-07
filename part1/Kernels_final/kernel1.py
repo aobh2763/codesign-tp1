@@ -1,21 +1,30 @@
 from helper import *
 from definitions import *
 
-import pyopencl as cl
 import numpy
+
+import pyopencl as cl
+
 from time import time
 from time import sleep
 
+# A[N][N], B[N][N], C[N][N]
 N = 2048
 
 # Number of elements in the matrix
 size = N * N
+#true value
+cval = float(N) * AVAL * BVAL
+
 
 #--------------------------------------------------------------------------------
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
-#--------------------------------------------------------------------------
-kernel_name="part1/Kernels_final/kernel2.cl"
-
+#--------------------------------------------------------------------------------
+print ("Matrix multiplication",N,"*",N," repeated ",COUNT," times, j=0, i=1 :\n")
+kernel_name="part1/Kernels_final/kernel1.cl"
+#--------------------------------------------------------------------------------
+# CHOOSE localsize : 2, 4, 8 , 16 or 32
+#--------------------------------------------------------------------------------
 
 # Set up OpenCL
 context = cl.create_some_context()
@@ -33,48 +42,36 @@ d_a = cl.Buffer(context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, ho
 d_b = cl.Buffer(context, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=h_B)
 d_c = cl.Buffer(context, cl.mem_flags.WRITE_ONLY, size=h_C.nbytes)
 
-
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... Naive: Each WI computes one element
 # C_elemnt.cl : i= get_global_id(0) - j=get_global_id(1)
 #--------------------------------------------------------------------------------
-for TS in [2, 4, 8, 16, 32]:
-    kernelsource = open(kernel_name).read()
-    program = cl.Program(context, kernelsource).build(
-        options=[f"-DTS={TS}"]
-    )
-    mmul = program.mmul
-    mmul.set_scalar_arg_dtypes([numpy.int32, numpy.int32, numpy.int32, None, None, None])
+kernelsource = open(kernel_name).read()
+program = cl.Program(context, kernelsource).build()
+mmul = program.mmul
+mmul.set_scalar_arg_dtypes([numpy.int32, None, None, None])
 
+
+for localsize in [2, 4, 8, 16, 32]:
     # Do the multiplication COUNT times
-
-
-    print("Starting", COUNT , " OpenCL Matrix Multiplications for TS = ", TS, "\n")
+    print ("\n Starting ", COUNT, " OpenCL Matrix Multiplications for localsize = ", localsize, "\n")
     start_time = time()
 
-    for i in range(COUNT):    
-        h_C.fill(0.0)
-        try: 
-            # Work-group computes a block of C. This size is also set
-            # in a #define inside the kernel function. Note this blocksize
-            # must evenly divide the matrix order
 
-            mmul(queue, (N,N), (TS,TS), N, N, N, d_a, d_b, d_c)
-            
-            #mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), d_a, d_b, d_c,d_Awrk, d_Bwrk)
+    for i in range(COUNT):    
+        #h_C.fill(0.0)
+        try:
+            mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), d_a, d_b, d_c)
             queue.finish()
         except:
-            print (" ===  Error ===\n")    
+            print (" ===  Error for localsize =", localsize, "===\n")    
 
     run_time = time() - start_time
-        
-    print ("mmum queued")
+
+
+    print ("\n End of", COUNT, "Matrix Multiplications\n")
+
+    results (N, COUNT , run_time)
 
     #reading the result h_C
     cl.enqueue_copy(queue, h_C, d_c)
-
-    #cl.enqueue_read_buffer(queue, d_c, h_C).wait()
-    print (h_C[0])
-
-
-    results (N, COUNT, run_time)
