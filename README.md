@@ -32,7 +32,7 @@ TSM =  128  TSN =  128  TSK =  16  WPTM =  16  WPTN =  8
 ## Kernel 7 : Wider loads with register blocking
 ### Best
 TSM =  64  TSN =  128  TSK =  16  WPTM =  8  WPTN =  16  WIDTH =  4
-19498491287231445 seconds at 2819478.7267874754 MFLOPS
+0.19498491287231445 seconds at 2819478.7267874754 MFLOPS
 
 ## Kernel 8 : CUDA and Kepler-specific optimisations
 TBD
@@ -48,3 +48,6 @@ TSM =  128  TSN =  128  TSK =  16  WPTM =  16  WPTN =  8  WIDTH = 2
 ## Kernel 11 : Mystery kernel
 THREADSX =  16  THREADSY =  4  RX =  4  RY =  8
 0.16794228553771973 seconds at 3273480.6015518066 MFLOPS
+
+## Ultimate Kernel : K2 + K3 + K4 + K6 + K7 + K9 + K10
+0.08525609970092773 seconds at 6448287.170261176 MFLOPS
