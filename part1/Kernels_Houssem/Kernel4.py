@@ -45,7 +45,7 @@ kernel_name="part1/Kernels_Houssem/Kernel4.cl"
 # CHOOSE localsize : 2, 4, 8 , 16 or 32
 #--------------------------------------------------------------------------------
 print("We chose the maximum local size of 16 for best performance.\n")
-locblocksize = 16
+locblocksize = 32
 
 
 # Set up OpenCL

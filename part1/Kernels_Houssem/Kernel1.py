@@ -46,7 +46,7 @@ kernel_name="part1/Kernels_Houssem/Kernel1.cl"
 # CHOOSE localsize : 2, 4, 8 , 16 or 32
 #--------------------------------------------------------------------------------
 print("We chose the maximum local size of 16 for best performance.\n")
-localsize = 16
+localsize = 32
 
 # Set up OpenCL
 context = cl.create_some_context()
@@ -73,26 +73,27 @@ program = cl.Program(context, kernelsource).build()
 mmul = program.mmul
 mmul.set_scalar_arg_dtypes([numpy.int32, None, None, None])
 
-# Do the multiplication COUNT times
 
-print ("\n Starting ", COUNT, " OpenCL Matrix Multiplications")
-start_time = time()
-
-
-for i in range(COUNT):    
-    #h_C.fill(0.0)
-    try:
-        mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), d_a, d_b, d_c)
-        queue.finish()
-    except:
-        print (" ===  Error for localsize =", localsize, "===\n")    
-
-run_time = time() - start_time
+for localsize in [2, 4, 8, 16, 32]:
+    # Do the multiplication COUNT times
+    print ("\n Starting ", COUNT, " OpenCL Matrix Multiplications")
+    start_time = time()
 
 
-print ("\n End of", COUNT, "Matrix Multiplications\n")
+    for i in range(COUNT):    
+        #h_C.fill(0.0)
+        try:
+            mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), d_a, d_b, d_c)
+            queue.finish()
+        except:
+            print (" ===  Error for localsize =", localsize, "===\n")    
 
-results (N, COUNT , run_time)
+    run_time = time() - start_time
 
-#reading the result h_C
-cl.enqueue_copy(queue, h_C, d_c)
+
+    print ("\n End of", COUNT, "Matrix Multiplications\n")
+
+    results (N, COUNT , run_time)
+
+    #reading the result h_C
+    cl.enqueue_copy(queue, h_C, d_c)
