@@ -42,91 +42,83 @@ d_bt = cl.Buffer(context,  cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR,
 # OpenCL matrix multiplication ... Naive: Each WI computes one element
 # C_elemnt.cl : i= get_global_id(0) - j=get_global_id(1)
 #--------------------------------------------------------------------------------
+
 bestmflops = 0.0
-besttuple = (0, 0, 0, 0, 0)
-MAX_WG_SIZE = 1024
-LOCAL_MEM_BYTES = 48*1024
-WARP_SIZE = 32
+besttuple  = (0, 0, 0)
 
-for TSM in [32, 64, 128]:
-    for TSN in [32, 64, 128]:
-        for TSK in [16, 32, 64]:
-            for WPTM in [1, 2, 4, 8]:
-                if TSM % WPTM != 0:
-                    continue
-                for WPTN in [1, 2, 4, 8]:
-                    if TSN % WPTN != 0:
-                        continue
+MAX_WG_SIZE      = 1024
+LOCAL_MEM_BYTES  = 48 * 1024
 
-                    RTSM = TSM // WPTM
-                    RTSN = TSN // WPTN
+for TS in [32]:
+    for WPT in [8]:
 
-                    # --- work-group size ---
-                    if RTSM*RTSN > MAX_WG_SIZE:
-                        continue
+        # --- C1: WPT must divide TS (RTS must be a whole number ≥ 1) ---
+        if TS % WPT != 0:
+            continue
+        RTS = TS // WPT
 
-                    # --- local memory check ---
-                    local_mem = 4*(TSM*TSK + TSN*TSK)
-                    if local_mem > LOCAL_MEM_BYTES:
-                        continue
+        # --- C2: work-group size (RTS × TS) must not exceed hardware limit ---
+        if RTS * TS > MAX_WG_SIZE:
+            continue
 
-                    # --- integer loads per thread ---
-                    threads = RTSM * RTSN
-                    if (TSK*TSM) % threads != 0:
-                        continue
+        for TSDK in [16]:
 
-                    LPT = (TSK*TSM)//threads
-                    
-                    kernelsource = open(kernel_name).read()
-                    program = cl.Program(context, kernelsource).build(
-                        options=[f"-DTS={TSM}", f"-DWIDTH={TSN}", f"-DTSK={TSK}", f"-DWPTM={WPTM}", f"-DWPTN={WPTN}"]
-                    )
-                    transpose = program.transpose
-                    transpose.set_scalar_arg_dtypes([numpy.int32, numpy.int32, None, None])
-                    
-                    mmul = program.mmul
-                    mmul.set_scalar_arg_dtypes([numpy.int32, numpy.int32, numpy.int32, None, None, None])
+            # --- C3: LPT must be a whole number ---
+            if (TSDK * WPT) % TS != 0:
+                continue
+            LPT = (TSDK * WPT) // TS
 
-                    # Do the multiplication COUNT times
-                    
-                    
-                    num_groups_M = numpy.ceil(N / TSM)
-                    num_groups_N = numpy.ceil(N / TSN)
+            # --- C4: local memory ---
+            # Asub[TSDK][TS]  →  TSDK * TS  floats
+            # Bsub[TS][TSDK+2] →  TS * (TSDK + 2) floats
+            local_mem_bytes = 4 * (TSDK * TS + TS * (TSDK + 2))
+            if local_mem_bytes > LOCAL_MEM_BYTES:
+                continue
 
+            # --- C5: N must be divisible by TS (tile rows/cols divide evenly) ---
+            if N % TS != 0:
+                continue
 
-                    print("Starting", COUNT , " OpenCL Matrix Multiplications \n")
-                    print("for TSM = ", TSM, " TSN = ", TSN, " TSK = ", TSK, " WPTM = ", WPTM, " WPTN = ", WPTN, "\n")
-                    start_time = time()
+            # --- C6: N must be divisible by TSDK (K-loop tiles divide evenly) ---
+            if N % TSDK != 0:
+                continue
 
-                    for i in range(COUNT):    
-                        h_C.fill(0.0)
-                        try: 
-                            # Work-group computes a block of C. This size is also set
-                            # in a #define inside the kernel function. Note this blocksize
-                            # must evenly divide the matrix order
-                            
-                            transpose(queue, (N,N), (32,32), N, N, d_b, d_bt)
+            # ── all constraints passed — safe to compile and run ──
+            kernelsource = open(kernel_name).read()
+            program = cl.Program(context, kernelsource).build(
+                options=[f"-DTS={TS}", f"-DWPT={WPT}", f"-DTSDK={TSDK}"]
+            )
+            mmul = program.mmul
+            mmul.set_scalar_arg_dtypes(
+                [numpy.int32, numpy.int32, numpy.int32, None, None, None]
+            )
 
-                            mmul(queue, (num_groups_M*RTSM, num_groups_N*RTSN), (RTSM, RTSN), N, N, N, d_a, d_bt, d_c)
-                            
-                            #mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), d_a, d_b, d_c,d_Awrk, d_Bwrk)
-                            queue.finish()
-                        except:
-                            print (" ===  Error ===\n")    
+            # global size matches the local tile dimensions exactly
+            global_rows = RTS * (N // RTS)   # always exact because N%TS==0 and RTS|TS
+            global_cols = TS  * (N // TS)
 
-                    run_time = time() - start_time
-                        
-                    print ("mmum queued")
+            print(f"Starting {COUNT} runs | TS={TS} WPT={WPT} TSDK={TSDK} "
+                  f"RTS={RTS} LPT={LPT} "
+                  f"local_mem={local_mem_bytes}B "
+                  f"wg=({RTS}×{TS}={RTS*TS})")
 
-                    #reading the result h_C
-                    cl.enqueue_copy(queue, h_C, d_c)
+            start_time = time()
+            for i in range(COUNT):
+                cl.enqueue_fill_buffer(
+                    queue, d_c, numpy.float32(0.0), 0, h_C.nbytes
+                )
+                mmul(queue, (global_rows, global_cols), (RTS, TS),
+                     N, N, N, d_a, d_b, d_c)
+                queue.finish()
+            run_time = time() - start_time
 
-                    #cl.enqueue_read_buffer(queue, d_c, h_C).wait()
-                    print (h_C[0])
-                    
-                    curr = results (N, COUNT, run_time)
-                    if curr > bestmflops:
-                        bestmflops = curr
-                        besttuple = (TSM, TSN, TSK, WPTM, WPTN)
-                        
-            print ("Best performance at TSM = ", besttuple[0], " TSN = ", besttuple[1], " TSK = ", besttuple[2], " WPTM = ", besttuple[3], " WPTN = ", besttuple[4], " with ", bestmflops, " MFLOPS\n")
+            cl.enqueue_copy(queue, h_C, d_c)
+            print(f"  h_C[0] = {h_C[0]}")
+
+            curr = results(N, COUNT, run_time)
+            if curr > bestmflops:
+                bestmflops = curr
+                besttuple  = (TS, WPT, TSDK)
+
+print(f"\nBest: TS={besttuple[0]} WPT={besttuple[1]} TSDK={besttuple[2]} "
+      f"→ {bestmflops:.1f} MFLOPS")
