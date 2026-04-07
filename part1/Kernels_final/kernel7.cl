@@ -18,11 +18,20 @@
 #define WPTN 8                       // The amount of work-per-thread in dimension N
 #endif
 
+#define MOD2(x,y) ((x) % (y))        // Modulo operation
+#define DIV2(x,y) ((x) / (y))        // Integer division
 #define RTSM (TSM/WPTM)              // The reduced tile-size in dimension M (== number of threads)
 #define RTSN (TSN/WPTN)              // The reduced tile-size in dimension N (== number of threads)
 #define LPTA ((TSK*WPTM*WPTN)/(TSN)) // The amount of loads-per-thread for A
 #define LPTB ((TSK*WPTM*WPTN)/(TSM)) // The amount of loads-per-thread for B
-
+#define WIDTH 4
+#if WIDTH == 1
+    typedef float floatX;
+#elif WIDTH == 2
+    typedef float2 floatX;
+#elif WIDTH == 4
+    typedef float4 floatX;
+#endif
 // Wider loads combined with 2D register blocking
 __kernel void mmul(const int M, const int N, const int K,
                       const __global floatX* A,
