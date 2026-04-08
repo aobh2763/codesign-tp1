@@ -28,7 +28,7 @@ cval = float(N) * AVAL * BVAL
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
 #--------------------------------------------------------------------------------
 print ("Matrix multiplication",N,"*",N," repeated ",COUNT," times, j=0, i=1 :\n")
-kernel_name="part1/Kernels_final/kernel_opt/kernel_ultimate.cl"
+kernel_name="part1/Kernels_final/kernel_opt/kernel_ultimatee.cl"
 
 # Set up OpenCL
 context = cl.create_some_context()
@@ -50,7 +50,9 @@ d_c = cl.Buffer(context, cl.mem_flags.WRITE_ONLY, size=h_C.nbytes)
 # OpenCL matrix multiplication ... Naive: Each WI computes one element
 # C_elemnt.cl : i= get_global_id(0) - j=get_global_id(1)
 #--------------------------------------------------------------------------------
-kernelsource = open(kernel_name).read()
+with open(kernel_name, "r", encoding="utf-8") as f:
+    kernelsource = f.read()
+
 program = cl.Program(context, kernelsource).build()
 mmul = program.mmul
 mmul.set_scalar_arg_dtypes([numpy.int32, numpy.int32, numpy.int32, None, None, None])
