@@ -1,20 +1,30 @@
-
+// Fully UNCOALESCED naive GEMM
 __kernel void mmul(
-    const int N,
-    global float* A,
-    __global float* B,
-    __global float* C)
+        const int M,
+        const int N,
+        const int K,
+        const __global float* A,
+        const __global float* B,
+        __global float* C)
 {
-    int k;
-    int i = get_global_id(0);
-    int j = get_global_id(1);
-    float tmp;
-        if ((i < N) && (j < N))
-        {
-            tmp = 0.0f;
-            for (k = 0; k < N; k++)
-                tmp += A[i*N+k] * B[k*N+j];
-                C[i*N+j] = tmp;
-        }
+    // Thread computes C[row,col]
+    const int row = get_global_id(0);
+    const int col = get_global_id(1);
 
+    if (row >= M || col >= N)
+        return;
+
+    float acc = 0.0f;
+
+    for (int k = 0; k < K; k++)
+    {
+        // Column-wise traversal (BAD)
+        float a = A[k * M + row];   // stride access
+        float b = B[col * K + k];   // stride access
+
+        acc += a * b;
+    }
+
+    // Also uncoalesced write
+    C[col * M + row] = acc;
 }

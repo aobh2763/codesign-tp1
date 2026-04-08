@@ -52,21 +52,48 @@ prog_ig = cl.Program(ctx_ig, src_ig).build()
 mmul_nv = prog_nv.mmul
 mmul_ig = prog_ig.mmul
 
-mmul_nv.set_scalar_arg_dtypes([numpy.int32, None, None, None])
+mmul_nv.set_scalar_arg_dtypes([numpy.int32, numpy.int32, numpy.int32, None, None, None])
 mmul_ig.set_scalar_arg_dtypes([numpy.int32, numpy.int32, numpy.int32, None, None, None])
 
 print(f"Starting {COUNT} dual-GPU matrix multiplications\n")
 start_time = time()
 
 for i in range(COUNT):
+    rows_nv = (rows_nv // 16) * 16
+    rows_ig = (rows_ig // 128) * 128
+
     # Launch NVIDIA (uncoalesced) — row_offset=0
     mmul_nv(queue_nv, (rows_nv, N), (16, 16),
-            numpy.int32(N), d_a_nv, d_b_nv, d_c_nv, numpy.int32(0))
+            numpy.int32(rows_nv), numpy.int32(N), numpy.int32(N), d_a_nv, d_b_nv, d_c_nv)
 
     # Launch iGPU (best kernel) — row_offset=rows_nv, non-blocking so both run in parallel
-    mmul_ig(queue_ig, (int(round((1 - alpha) * 128)), 128), (8, 16),
-            numpy.int32(N), d_a_ig, d_b_ig, d_c_ig, numpy.int32(rows_nv))
+    mmul_ig(queue_ig, (rows_ig, N), (8, 16),
+        numpy.int32(rows_ig), numpy.int32(N), numpy.int32(N), d_a_ig, d_b_ig, d_c_ig)
 
     # Wait for both to finish before next iteration
     queue_nv.finish()
     queue_ig.finish()
+
+run_time = time() - start_time
+
+print(f"End of {COUNT} multiplications\n")
+results(N, COUNT, run_time)
+
+h_C_nv = numpy.empty(rows_nv * N, dtype=numpy.float32)
+h_C_ig = numpy.empty(rows_ig * N, dtype=numpy.float32)
+
+cl.enqueue_copy(queue_nv, h_C_nv, d_c_nv)
+cl.enqueue_copy(queue_ig, h_C_ig, d_c_ig)
+
+queue_nv.finish()
+queue_ig.finish()
+
+# Paste slices back into h_C
+h_C[:rows_nv * N] = h_C_nv
+h_C[rows_nv * N:] = h_C_ig
+
+total_flops  = 2.0 * N**3
+elapsed_avg  = run_time / COUNT
+gflops_dual  = total_flops / elapsed_avg / 1e9
+
+print(f"\nDual-GPU performance : {gflops_dual:.1f} GFLOPS")

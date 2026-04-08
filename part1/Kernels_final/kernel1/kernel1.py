@@ -30,7 +30,7 @@ cval = float(N) * AVAL * BVAL
 print ("Matrix multiplication",N,"*",N," repeated ",COUNT," times, j=0, i=1 :\n")
 kernel_name="part1/Kernels_final/kernel1/kernel1.cl"
 #--------------------------------------------------------------------------------
-# CHOOSE localsize : 2, 4, 8 , 16 or 32
+# CHOOSE localsize : 4, 8 , 16 or 32
 #--------------------------------------------------------------------------------
 
 # Set up OpenCL
@@ -59,7 +59,7 @@ mmul = program.mmul
 mmul.set_scalar_arg_dtypes([numpy.int32, None, None, None])
 
 
-for localsize in [2, 4, 8, 16, 32]:
+for localsize in [4, 8, 16, 32]:
     # Do the multiplication COUNT times
     print ("\n Starting ", COUNT, " OpenCL Matrix Multiplications for localsize = ", localsize, "\n")
     start_time = time()

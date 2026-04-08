@@ -16,7 +16,7 @@ from time import time
 from time import sleep
 
 # A[N][N], B[N][N], C[N][N]
-N = 2048
+N = 2048*4
 
 # Number of elements in the matrix
 size = N * N
@@ -28,7 +28,7 @@ cval = float(N) * AVAL * BVAL
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
 #--------------------------------------------------------------------------------
 print ("Matrix multiplication",N,"*",N," repeated ",COUNT," times, j=0, i=1 :\n")
-kernel_name="part1/Kernels_final/kernel_opt/kernel_ultimatee.cl"
+kernel_name="part1/Kernels_final/kernel_opt/kernel_ultimate.cl"
 
 # Set up OpenCL
 context = cl.create_some_context()
@@ -62,7 +62,7 @@ start_time = time()
 
 for i in range(COUNT):
     try:
-        mmul(queue, (128,256), (8,16), numpy.int32 (N), numpy.int32 (N), numpy.int32 (N), d_a, d_b, d_c)
+        mmul(queue, (128*4,256*4), (8,16), numpy.int32 (N), numpy.int32 (N), numpy.int32 (N), d_a, d_b, d_c)
         queue.finish()
     except:
         print (" ===  Error for localsize =", (8,16), "===\n")    

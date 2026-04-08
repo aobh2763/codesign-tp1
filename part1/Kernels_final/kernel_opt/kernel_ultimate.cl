@@ -38,7 +38,7 @@
 #define WPTN 8      // output cols computed per thread  (must divide TSN)
 #endif
 #ifndef WIDTH
-#define WIDTH 4     // float vector width for global->local loads (1,2,4,8)
+#define WIDTH 4    // float vector width for global->local loads (1,2,4,8)
 #endif
 
 // ----------------------------------------------------------------------------

@@ -45,7 +45,7 @@ d_c = cl.Buffer(context, cl.mem_flags.WRITE_ONLY, size=h_C.nbytes)
 # OpenCL matrix multiplication ... Naive: Each WI computes one element
 # C_elemnt.cl : i= get_global_id(0) - j=get_global_id(1)
 #--------------------------------------------------------------------------------
-for TS in [2, 4, 8, 16, 32]:
+for TS in [4, 8, 16, 32]:
     kernelsource = open(kernel_name).read()
     program = cl.Program(context, kernelsource).build(
         options=[f"-DTS={TS}"]
