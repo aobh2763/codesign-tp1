@@ -1,9 +1,12 @@
-import sys
-import os
+#
+# Matrix Multiplication Element By Element
+# compute C=A*B
+# C[i][j] for i: 0--> N-1, j! 0--> N-1
+# 1) Kernel version to execute multiplication with i=0, j=1
 
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
+# 2) The Program asks for 2 inputs:
+# localsize (4,8,16 or 32) --> Block Size = localsize*localsize
+
 
 from helper import *
 from definitions import *
@@ -16,19 +19,44 @@ from time import time
 from time import sleep
 
 # A[N][N], B[N][N], C[N][N]
-N = 2048
+N = 8192
 
 # Number of elements in the matrix
 size = N * N
 #true value
 cval = float(N) * AVAL * BVAL
 
+# A matrix
+h_A = numpy.empty(size).astype(numpy.float32)
+h_A.fill(AVAL)
+
+# B matrix
+h_B = numpy.empty(size).astype(numpy.float32)
+h_B.fill(BVAL)
+
+# C matrix
+h_C = numpy.empty(size).astype(numpy.float32)
+
 
 #--------------------------------------------------------------------------------
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
 #--------------------------------------------------------------------------------
-print ("Matrix multiplication",N,"*",N," repeated ",COUNT," times, j=0, i=1 :\n")
-kernel_name="part1/Kernels_final/kernel_opt/kernel_ultimate.cl"
+print ("Matrix multiplication",N,"*",N," repeated 20 times, i=0, j=1 :\n")
+
+kernel_name="part2/kernel_uncoalsed.cl"
+
+#--------------------------------------------------------------------------------
+# CHOOSE localsize : 2, 4, 8 , 16 or 32
+#--------------------------------------------------------------------------------
+kernel_size = 16
+
+if (kernel_size):
+    localsize=int(kernel_size)
+    print ("Blocks Size is",localsize,"*",localsize,"\n")
+else:
+    print ("=== No valid input. Default Size 16 will be used. Block Size = 16*16")
+    localsize=16
+
 
 # Set up OpenCL
 context = cl.create_some_context()
@@ -53,19 +81,24 @@ d_c = cl.Buffer(context, cl.mem_flags.WRITE_ONLY, size=h_C.nbytes)
 kernelsource = open(kernel_name).read()
 program = cl.Program(context, kernelsource).build()
 mmul = program.mmul
-mmul.set_scalar_arg_dtypes([numpy.int32, numpy.int32, numpy.int32, None, None, None])
+mmul.set_scalar_arg_dtypes([numpy.int32, None, None, None])
 
+# Do the multiplication COUNT times
 
+print ("\n Starting ", COUNT, " OpenCL Matrix Multiplications")
 start_time = time()
 
-for i in range(COUNT):
+
+for i in range(COUNT):    
+    #h_C.fill(0.0)
     try:
-        mmul(queue, (128,256), (8,16), numpy.int32 (N), numpy.int32 (N), numpy.int32 (N), d_a, d_b, d_c)
+        mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), d_a, d_b, d_c)
         queue.finish()
     except:
-        print (" ===  Error for localsize =", (8,16), "===\n")    
+        print (" ===  Error for localsize =", localsize, "===\n")    
 
 run_time = time() - start_time
+
 
 print ("\n End of", COUNT, "Matrix Multiplications\n")
 
