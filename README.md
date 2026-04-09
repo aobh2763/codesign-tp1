@@ -153,3 +153,13 @@ THREADSX = 8 THREADSY = 8 RX = 4 RY = 8 <br />
 ## Ultimate Kernel : K2 + K3 + K4 + K6 + K7 + K9 + K10
 ### Best (2048x and 8192x)
 0.9831287860870361 seconds at 4473520.227811377 MFLOPS
+
+# Distributing Workload Between GPUs
+## Intel GPU : Ultimate Kernel
+702.9331228733063 seconds at 50053.65509739037 MFLOPS
+
+# NVIDIA GPU : Naive Uncoalsed Kernel
+63.8428168296814 seconds at 551109.3312611217 MFLOPS
+
+# Dual GPU Matrix Multiplication
+Takes too long!

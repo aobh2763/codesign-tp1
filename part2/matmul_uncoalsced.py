@@ -41,13 +41,10 @@ h_C = numpy.empty(size).astype(numpy.float32)
 #--------------------------------------------------------------------------------
 # CHOOSE KERNEL TO EXECUTE (0: i=dim(0),j=dim(1) ; 1:i=dim(1), j=dim(0)
 #--------------------------------------------------------------------------------
-print ("Matrix multiplication",N,"*",N," repeated 20 times, i=0, j=1 :\n")
+print ("Matrix multiplication",N,"*",N," repeated ", COUNT, " times, i=0, j=1 :\n")
 
 kernel_name="part2/kernel_uncoalsed.cl"
 
-#--------------------------------------------------------------------------------
-# CHOOSE localsize : 2, 4, 8 , 16 or 32
-#--------------------------------------------------------------------------------
 kernel_size = 16
 
 if (kernel_size):
@@ -81,7 +78,7 @@ d_c = cl.Buffer(context, cl.mem_flags.WRITE_ONLY, size=h_C.nbytes)
 kernelsource = open(kernel_name).read()
 program = cl.Program(context, kernelsource).build()
 mmul = program.mmul
-mmul.set_scalar_arg_dtypes([numpy.int32, None, None, None])
+mmul.set_scalar_arg_dtypes([numpy.int32, numpy.int32, numpy.int32, None, None, None])
 
 # Do the multiplication COUNT times
 
@@ -92,7 +89,7 @@ start_time = time()
 for i in range(COUNT):    
     #h_C.fill(0.0)
     try:
-        mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), d_a, d_b, d_c)
+        mmul(queue, (N,N), (localsize,localsize), numpy.int32 (N), numpy.int32 (N), numpy.int32 (N), d_a, d_b, d_c)
         queue.finish()
     except:
         print (" ===  Error for localsize =", localsize, "===\n")    

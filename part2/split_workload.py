@@ -9,10 +9,13 @@ N    = 8192
 size = N * N
 cval = float(N) * AVAL * BVAL
 
-alpha = 0.0685
+alpha = 0.917
 rows_nv = int(round(alpha * N))
 rows_ig = N - rows_nv
 
+# Round to fit the workgroup sizes of the kernels (16 for NVIDIA, 128 for iGPU)
+rows_nv = (rows_nv // 16) * 16
+rows_ig = (rows_ig // 128) * 128
 print(f"Split: NVIDIA rows 0..{rows_nv-1} ({rows_nv}), iGPU rows {rows_nv}..{N-1} ({rows_ig})")
 
 h_A = numpy.empty(size).astype(numpy.float32)
@@ -35,11 +38,19 @@ ctx_ig   = cl.Context([igpu_dev])
 queue_nv = cl.CommandQueue(ctx_nv)
 queue_ig = cl.CommandQueue(ctx_ig)
 
-d_a_nv = cl.Buffer(ctx_nv, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=h_A)
+d_a_nv = cl.Buffer(
+    ctx_nv,
+    cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+    hostbuf=h_A[:rows_nv*N]
+)
 d_b_nv = cl.Buffer(ctx_nv, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=h_B)
 d_c_nv = cl.Buffer(ctx_nv, cl.mem_flags.WRITE_ONLY, size=rows_nv * N * h_C.itemsize)
 
-d_a_ig = cl.Buffer(ctx_ig, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=h_A)
+d_a_ig = cl.Buffer(
+    ctx_ig,
+    cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+    hostbuf=h_A[rows_nv*N:]
+)
 d_b_ig = cl.Buffer(ctx_ig, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, hostbuf=h_B)
 d_c_ig = cl.Buffer(ctx_ig, cl.mem_flags.WRITE_ONLY, size=rows_ig * N * h_C.itemsize)
 
@@ -59,16 +70,11 @@ print(f"Starting {COUNT} dual-GPU matrix multiplications\n")
 start_time = time()
 
 for i in range(COUNT):
-    rows_nv = (rows_nv // 16) * 16
-    rows_ig = (rows_ig // 128) * 128
+    event_nv = mmul_nv(queue_nv, (rows_nv, N), (16, 16),
+               numpy.int32(rows_nv), numpy.int32(N), numpy.int32(N), d_a_nv, d_b_nv, d_c_nv)
 
-    # Launch NVIDIA (uncoalesced) — row_offset=0
-    mmul_nv(queue_nv, (rows_nv, N), (16, 16),
-            numpy.int32(rows_nv), numpy.int32(N), numpy.int32(N), d_a_nv, d_b_nv, d_c_nv)
-
-    # Launch iGPU (best kernel) — row_offset=rows_nv, non-blocking so both run in parallel
-    mmul_ig(queue_ig, (rows_ig, N), (8, 16),
-        numpy.int32(rows_ig), numpy.int32(N), numpy.int32(N), d_a_ig, d_b_ig, d_c_ig)
+    event_ig = mmul_ig(queue_ig, (rows_ig, N), (8, 16),
+               numpy.int32(rows_ig), numpy.int32(N), numpy.int32(N), d_a_ig, d_b_ig, d_c_ig)
 
     # Wait for both to finish before next iteration
     queue_nv.finish()
