@@ -99,7 +99,7 @@ For perfectly optimised NVIDIA GPU RTX 3050:
 ## Kernel 1 : Naive approach
 ### Best
 localsize = 32 <br />
-9.505536556243896 seconds at 462682.61502976995 MFLOPS
+9.741274929046630 seconds at 439481.48102976995 MFLOPS
 
 ## Kernel 2 : Tiling in the local memory
 ### Best

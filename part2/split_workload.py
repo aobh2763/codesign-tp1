@@ -70,13 +70,16 @@ print(f"Starting {COUNT} dual-GPU matrix multiplications\n")
 start_time = time()
 
 for i in range(COUNT):
-    event_nv = mmul_nv(queue_nv, (rows_nv, N), (16, 16),
+    mmul_nv(queue_nv, (rows_nv, N), (16, 16),
                numpy.int32(rows_nv), numpy.int32(N), numpy.int32(N), d_a_nv, d_b_nv, d_c_nv)
 
-    event_ig = mmul_ig(queue_ig, (rows_ig, N), (8, 16),
+    mmul_ig(queue_ig, (rows_ig, N), (8, 16),
                numpy.int32(rows_ig), numpy.int32(N), numpy.int32(N), d_a_ig, d_b_ig, d_c_ig)
 
     # Wait for both to finish before next iteration
+    queue_nv.flush()
+    queue_ig.flush()
+    
     queue_nv.finish()
     queue_ig.finish()
 
