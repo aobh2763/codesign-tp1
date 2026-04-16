@@ -1,6 +1,9 @@
 import sys
 import os
 
+import csv
+results_log = []
+
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
@@ -139,10 +142,16 @@ for TS in [32, 64, 128]:
             print(f"  h_C[0] = {h_C[0]}")
 
             curr, currs = results(N, COUNT, run_time)
+            results_log.append({"TS": TS, "WPT": WPT, "TSDK": TSDK, "MFLOPS": curr, "secs": currs})
             if curr > bestmflops:
                 bestmflops = curr
                 bestsecs   = currs
                 besttuple  = (TS, WPT, TSDK)
+                
+with open("tuning_results.csv", "w", newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=["TS", "WPT", "TSDK", "MFLOPS", "secs"])
+    writer.writeheader()
+    writer.writerows(results_log)
     
 print("Best performance at TS={}, WPT={}, TSDK={}".format(*besttuple))
 print (bestsecs, "seconds at", bestmflops, "MFLOPS")

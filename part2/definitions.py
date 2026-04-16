@@ -15,4 +15,4 @@ TOL = 0.001
 DIM = 2
 
 # number of times to do each multiplication
-COUNT = 4
+COUNT = 16
